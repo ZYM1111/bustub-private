@@ -13,6 +13,7 @@
 #pragma once
 
 #include <memory>
+#include <mutex>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
@@ -22,6 +23,7 @@
 #include "common/exception.h"
 #include "common/rwlatch.h"
 
+std::mutex mutex;
 namespace bustub {
 
 /**
@@ -66,7 +68,7 @@ class TrieNode {
    * @param key_char Key char of child node.
    * @return True if this trie node has a child with given key, false otherwise.
    */
-  bool HasChild(char key_char) const { return children_.count(key_char)!=0U; }
+  bool HasChild(char key_char) const { return children_.count(key_char) != 0U; }
 
   /**
    * TODO(P0): Add implementation
@@ -120,7 +122,7 @@ class TrieNode {
    */
   std::unique_ptr<TrieNode> *InsertChildNode(char key_char, std::unique_ptr<TrieNode> &&child) {
     try {
-      if (children_.count(key_char)!=0U || child->key_char_ != key_char) {
+      if (children_.count(key_char) != 0U || child->key_char_ != key_char) {
         return nullptr;
       }
       children_[key_char] = std::move(child);
@@ -141,7 +143,7 @@ class TrieNode {
    *         node does not exist.
    */
   std::unique_ptr<TrieNode> *GetChildNode(char key_char) {
-    if (children_.count(key_char)==0U) {
+    if (children_.count(key_char) == 0U) {
       return nullptr;
     }
     return &children_[key_char];
@@ -156,7 +158,7 @@ class TrieNode {
    * @param key_char Key char of child node to be removed
    */
   void RemoveChildNode(char key_char) {
-    if (children_.count(key_char)==0U) {
+    if (children_.count(key_char) == 0U) {
       return;
     }
     children_.erase(key_char);
@@ -298,6 +300,7 @@ class Trie {
    */
   template <typename T>
   bool Insert(const std::string &key, T value) {
+    std::lock_guard<std::mutex> lock(mutex);
     if (key.empty()) {
       return false;
     }
@@ -371,6 +374,7 @@ class Trie {
    * @return True if the key exists and is removed, false otherwise
    */
   bool Remove(const std::string &key) {
+    std::lock_guard<std::mutex> lock(mutex);
     if (key.empty()) {
       return false;
     }
@@ -397,6 +401,7 @@ class Trie {
    */
   template <typename T>
   T GetValue(const std::string &key, bool *success) {
+    std::lock_guard<std::mutex> lock(mutex);
     if (key.empty()) {
       *success = false;
       return {};
