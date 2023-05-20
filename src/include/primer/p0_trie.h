@@ -13,7 +13,6 @@
 #pragma once
 
 #include <memory>
-#include <mutex>
 #include <stdexcept>
 #include <string>
 #include <unordered_map>
@@ -300,8 +299,11 @@ class Trie {
    */
   template <typename T>
   bool Insert(const std::string &key, T value) {
-    std::lock_guard<std::mutex> lock(mutex);
+    latch_.RLock();
+    latch_.WLock();
     if (key.empty()) {
+      latch_.RUnlock();
+      latch_.WUnlock();
       return false;
     }
     std::unique_ptr<TrieNode> *node = &(this->root_);
@@ -310,19 +312,27 @@ class Trie {
       if (i == static_cast<int>(key.size()) - 1) {
         if (!node->get()->HasChild(ch)) {
           if (!node->get()->InsertChildNode(ch, std::make_unique<TrieNodeWithValue<T>>(ch, value))) {
+            latch_.RUnlock();
+            latch_.WUnlock();
             return false;
           }
         } else if (node->get()->GetChildNode(ch)->get()->IsEndNode()) {
+          latch_.RUnlock();
+          latch_.WUnlock();
           return false;
         } else {
           if (!node->get()->InsertChildNode(ch, std::make_unique<TrieNodeWithValue<T>>(
                                                     std::move(*(node->get()->GetChildNode(ch)->get())), value))) {
+            latch_.RUnlock();
+            latch_.WUnlock();
             return false;
           }
         }
       } else {
         if (!node->get()->HasChild(ch)) {
           if (!node->get()->InsertChildNode(ch, std::make_unique<TrieNode>(ch))) {
+            latch_.RUnlock();
+            latch_.WUnlock();
             return false;
           }
         }
@@ -330,6 +340,8 @@ class Trie {
       assert(node->get()->HasChild(ch));
       node = node->get()->GetChildNode(ch);
     }
+    latch_.RUnlock();
+    latch_.WUnlock();
     return true;
   }
 
@@ -374,10 +386,15 @@ class Trie {
    * @return True if the key exists and is removed, false otherwise
    */
   bool Remove(const std::string &key) {
-    std::lock_guard<std::mutex> lock(mutex);
+    latch_.RLock();
+    latch_.WLock();
     if (key.empty()) {
+      latch_.RUnlock();
+      latch_.WUnlock();
       return false;
     }
+    latch_.RUnlock();
+    latch_.WUnlock();
     return Remove(key, 0, &root_, &root_);
   }
 
@@ -401,15 +418,17 @@ class Trie {
    */
   template <typename T>
   T GetValue(const std::string &key, bool *success) {
-    std::lock_guard<std::mutex> lock(mutex);
+    latch_.WLock();
     if (key.empty()) {
       *success = false;
+      latch_.WUnlock();
       return {};
     }
     auto u = &root_;
     for (auto ch : key) {
       if (!u->get()->HasChild(ch)) {
         *success = false;
+        latch_.WUnlock();
         return {};
       }
       u = u->get()->GetChildNode(ch);
@@ -417,9 +436,11 @@ class Trie {
     auto trans = dynamic_cast<TrieNodeWithValue<T> *>(u->get());
     if (trans) {
       *success = true;
+      latch_.WUnlock();
       return trans->GetValue();
     }
     *success = false;
+    latch_.WUnlock();
     return {};
   }
 };
