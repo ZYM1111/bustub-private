@@ -42,7 +42,7 @@ class ExtendibleHashTable : public HashTable<K, V> {
    * @brief Create a new ExtendibleHashTable.
    * @param bucket_size: fixed size for each bucket
    */
-  explicit ExtendibleHashTable(size_t bucket_size);
+  explicit ExtendibleHashTable(size_t bucket_size) { bucket_size_ = bucket_size; };
 
   /**
    * @brief Get the global depth of the directory.
@@ -105,6 +105,8 @@ class ExtendibleHashTable : public HashTable<K, V> {
    */
   auto Remove(const K &key) -> bool override;
 
+  auto GetIdPulsOne(const int id) -> int;
+  
   /**
    * Bucket class for each hash table bucket that the directory points to.
    */
@@ -132,7 +134,15 @@ class ExtendibleHashTable : public HashTable<K, V> {
      * @param[out] value The value associated with the key.
      * @return True if the key is found, false otherwise.
      */
-    auto Find(const K &key, V &value) -> bool;
+    auto Find(const K &key, V &value) -> bool {
+      for (auto pa : list_) {
+        if (pa.first == key) {
+          value = pa.second;
+          return true;
+        }
+      }
+      return false;
+    };
 
     /**
      *
@@ -142,7 +152,17 @@ class ExtendibleHashTable : public HashTable<K, V> {
      * @param key The key to be deleted.
      * @return True if the key exists, false otherwise.
      */
-    auto Remove(const K &key) -> bool;
+    auto Remove(const K &key) -> bool {
+      for (auto it = list_.begin(); it != list_.end();) {
+        if (it->first == key) {
+          it = list_.erase(it);
+          return true;
+        } else {
+          ++it;
+        }
+      }
+      return false;
+    };
 
     /**
      *
@@ -155,7 +175,17 @@ class ExtendibleHashTable : public HashTable<K, V> {
      * @param value The value to be inserted.
      * @return True if the key-value pair is inserted, false otherwise.
      */
-    auto Insert(const K &key, const V &value) -> bool;
+    auto Insert(const K &key, const V &value) -> bool {
+      if (IsFull()) {
+        return false;
+      }
+      V tmp;
+      if (Find(key, tmp) && !Remove(key)) {
+        return false;
+      }
+      list_.emplace_back(std::make_pair(key, value));
+      return true;
+    };
 
    private:
     // TODO(student): You may add additional private members and helper functions

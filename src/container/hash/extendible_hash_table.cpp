@@ -66,7 +66,12 @@ auto ExtendibleHashTable<K, V>::GetNumBucketsInternal() const -> int {
 
 template <typename K, typename V>
 auto ExtendibleHashTable<K, V>::Find(const K &key, V &value) -> bool {
-  UNREACHABLE("not implemented");
+  auto bucket_id = IndexOf(key);
+  auto bucket_tar = &dir_[bucket_id];
+  if (bucket_tar->get()->Find(key, value)) {
+    return true;
+  }
+  return false;
 }
 
 template <typename K, typename V>
@@ -74,9 +79,25 @@ auto ExtendibleHashTable<K, V>::Remove(const K &key) -> bool {
   UNREACHABLE("not implemented");
 }
 
+template <class K, class V>
+auto ExtendibleHashTable<K, V>::GetIdPulsOne(const int id) -> int {
+  
+}
+
 template <typename K, typename V>
 void ExtendibleHashTable<K, V>::Insert(const K &key, const V &value) {
-  UNREACHABLE("not implemented");
+  auto bucket_id = IndexOf(key);
+  auto bucket_tar = &dir_[bucket_id];
+  if (bucket_tar->get()->IsFull()){
+    if (global_depth_ == bucket_tar->get()->depth_){
+
+    }
+    
+    // 原来的bucket给id前面加0的 新建一个bucket给id前面加1的
+    bucket_tar->get()->IncrementDepth();
+
+
+  }
 }
 
 //===--------------------------------------------------------------------===//
