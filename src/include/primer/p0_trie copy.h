@@ -304,6 +304,7 @@ class Trie {
       latch_.WUnlock();
       return false;
     }
+
     auto node = &root_;
     for (int64_t i = 0; i < static_cast<int64_t>(key.size()); i++) {
       char ch = key[i];
@@ -317,9 +318,8 @@ class Trie {
           latch_.WUnlock();
           return false;
         } else {  // 有ch孩子 不是end node
-          auto end_node = std::move(*node->get()->GetChildNode(ch));
-          node->get()->RemoveChildNode(ch);
-          if (!node->get()->InsertChildNode(ch, std::make_unique<TrieNodeWithValue<T>>(std::move(*end_node), value))) {
+          if (!node->get()->InsertChildNode(ch, std::make_unique<TrieNodeWithValue<T>>(
+                                                    std::move(*(node->get()->GetChildNode(ch)->get())), value))) {
             latch_.WUnlock();
             return false;
           }
