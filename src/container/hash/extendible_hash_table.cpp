@@ -73,7 +73,7 @@ auto ExtendibleHashTable<K, V>::GetNumBucketsInternal() const -> int {
 
 template <typename K, typename V>
 auto ExtendibleHashTable<K, V>::Find(const K &key, V &value) -> bool {
-  std::lock_guard<std::mutex> lock(latch_);
+  std::scoped_lock<std::mutex> lock(latch_);
   auto bucket_id = IndexOf(key);
   auto bucket_tar = &dir_[bucket_id];
   return bucket_tar->get()->Find(key, value);
@@ -81,7 +81,7 @@ auto ExtendibleHashTable<K, V>::Find(const K &key, V &value) -> bool {
 
 template <typename K, typename V>
 auto ExtendibleHashTable<K, V>::Remove(const K &key) -> bool {
-  std::lock_guard<std::mutex> lock(latch_);
+  std::scoped_lock<std::mutex> lock(latch_);
   auto bucket_id = IndexOf(key);
   V value;
   if (!dir_[bucket_id]->Find(key, value)) {
@@ -95,56 +95,41 @@ auto ExtendibleHashTable<K, V>::Remove(const K &key) -> bool {
 // bucket是list<pair<k,v>>
 template <typename K, typename V>
 void ExtendibleHashTable<K, V>::Insert(const K &key, const V &value) {
-  // std::lock_guard<std::mutex> lock(latch_);
+  std::scoped_lock<std::mutex> lock(latch_);
   auto bucket_id = IndexOf(key);
-  if (bucket_id >= dir_.size()) {
-    return;
-  }
   auto bucket_tar = dir_[bucket_id];
   while (bucket_tar->IsFull()) {
-    if (GetGlobalDepth() == GetLocalDepth(bucket_id)) {  // 目录扩张+桶分裂
+    if (GetGlobalDepthInternal() == GetLocalDepthInternal(bucket_id)) {  // 目录扩张+桶分裂
       auto old_sz = static_cast<int>(dir_.size());
       IncrementGlobalDepth();
       dir_.resize(dir_.size() << 1);
-      for (auto i = old_sz, j = 0; i < static_cast<int>(dir_.size()); i++, j++) {
-        dir_[i] = dir_[j];
+      for (auto i = 0; i < old_sz; i++) {
+        dir_[i + old_sz] = dir_[i];
       }
-      bucket_tar->IncrementDepth();
-      dir_[bucket_id + old_sz] = std::make_shared<Bucket>(GetBucketSize(), bucket_tar->GetDepth());
-      bucket_size_++;
-      auto &old_list = bucket_tar->GetItems();
-      auto &new_list = dir_[bucket_id + old_sz].get()->GetItems();
-      for (auto it = old_list.begin(); it != old_list.end();) {
-        auto tmp_id = IndexOf(it->first);
+    }
+    auto mask = 1 << bucket_tar->GetDepth();
+    auto bucket0 = std::make_shared<Bucket>(GetBucketSize(), bucket_tar->GetDepth() + 1);
+    auto bucket1 = std::make_shared<Bucket>(GetBucketSize(), bucket_tar->GetDepth() + 1);
+    num_buckets_++;
+    for (auto [k, v] : bucket_tar->GetItems()) {
+      auto hash_key = std::hash<K>()(k);
+      if ((hash_key & mask) == 0U) {
+        bucket0->Insert(k, v);
+      } else {
+        bucket1->Insert(k, v);
+      }
+    }
 
-        if (tmp_id != bucket_id) {
-          new_list.emplace_back(*it);
-          it = old_list.erase(it);
+    for (auto i = 0; i < static_cast<int>(dir_.size()); i++) {
+      if (dir_[i] == bucket_tar) {
+        if ((i & mask) == 0U) {
+          dir_[i] = bucket0;
         } else {
-          ++it;
+          dir_[i] = bucket1;
         }
-      }
-    } else {  // 桶分裂
-      auto old_list = dir_[bucket_id]->GetItems();
-      auto mask = (1 << dir_[bucket_id]->GetDepth()) - 1;
-      for (size_t i = 0; i < dir_.size(); i++) {
-        if ((i & mask) == (bucket_id & mask)) {
-          dir_[i] = std::make_shared<Bucket>(GetBucketSize(), global_depth_);
-          if (i != bucket_id) {
-            bucket_size_++;
-          }
-        }
-      }
-      for (auto [k, v] : old_list) {
-        auto id = IndexOf(k);
-
-        dir_[id]->Insert(k, v);
       }
     }
     bucket_id = IndexOf(key);
-    if (bucket_id >= dir_.size()) {
-      return;
-    }
     bucket_tar = dir_[bucket_id];
   }
   bucket_tar->Insert(key, value);
