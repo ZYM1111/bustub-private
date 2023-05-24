@@ -12,11 +12,14 @@
 
 #pragma once
 
+#include <cstddef>
 #include <limits>
 #include <list>
 #include <mutex>  // NOLINT
 #include <unordered_map>
 #include <vector>
+#include <set>
+#include <map>
 
 #include "common/config.h"
 #include "common/macros.h"
@@ -135,10 +138,15 @@ class LRUKReplacer {
  private:
   // TODO(student): implement me! You can replace these member variables as you like.
   // Remove maybe_unused if you start using them.
-  [[maybe_unused]] size_t current_timestamp_{0};
+  size_t current_timestamp_{0};
   [[maybe_unused]] size_t curr_size_{0};
-  [[maybe_unused]] size_t replacer_size_;
-  [[maybe_unused]] size_t k_;
+  size_t replacer_size_;
+  size_t k_;
+  std::set<std::pair<frame_id_t, size_t>> cache_id_time_, history_id_time_;
+  std::set<std::pair<size_t, frame_id_t>> cache_time_id_, history_time_id_;
+  std::map<frame_id_t, size_t> history_cnt_;
+  std::set<frame_id_t> total_;  // 总的在两个queue中的id
+  std::set<frame_id_t> cache_is_evictable_, history_is_evictable_;
   std::mutex latch_;
 };
 
