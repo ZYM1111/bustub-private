@@ -11,6 +11,8 @@
 //===----------------------------------------------------------------------===//
 
 #include "buffer/lru_k_replacer.h"
+#include <exception>
+#include <iostream>
 #include <utility>
 #include "common/config.h"
 
@@ -19,6 +21,7 @@ namespace bustub {
 LRUKReplacer::LRUKReplacer(size_t num_frames, size_t k) : replacer_size_(num_frames), k_(k) {}
 
 auto LRUKReplacer::Evict(frame_id_t *frame_id) -> bool {
+  std::scoped_lock<std::mutex> lock(latch_);
   if (Size() == 0) {
     return false;
   }
@@ -29,7 +32,6 @@ auto LRUKReplacer::Evict(frame_id_t *frame_id) -> bool {
       history_time_id_.erase(std::make_pair(ti, id));
       history_cnt_[id] = 0;
       history_is_evictable_.erase(id);
-      total_.erase(id);
       return true;
     }
   }
@@ -40,7 +42,6 @@ auto LRUKReplacer::Evict(frame_id_t *frame_id) -> bool {
       cache_id_time_.erase(std::make_pair(id, ti));
       cache_time_id_.erase(std::make_pair(ti, id));
       cache_is_evictable_.erase(id);
-      total_.erase(id);
       return true;
     }
   }
@@ -48,6 +49,7 @@ auto LRUKReplacer::Evict(frame_id_t *frame_id) -> bool {
 }
 
 void LRUKReplacer::RecordAccess(frame_id_t frame_id) {
+  std::scoped_lock<std::mutex> lock(latch_);
   auto it = cache_id_time_.lower_bound(std::make_pair(frame_id, 0));
   if (it != cache_id_time_.end() && it->first == frame_id) {  // 在cache queue里, 更新时间
     auto [id, ti] = *it;
@@ -72,7 +74,6 @@ void LRUKReplacer::RecordAccess(frame_id_t frame_id) {
           for (auto it3 : cache_time_id_) {
             if (cache_is_evictable_.count(it3.second) != 0U) {
               cache_is_evictable_.erase(it3.second);
-              total_.erase(it3.second);
               cache_id_time_.erase(std::make_pair(it3.second, it3.first));
               cache_time_id_.erase(std::make_pair(it3.first, it3.second));
               break;
@@ -113,6 +114,7 @@ void LRUKReplacer::RecordAccess(frame_id_t frame_id) {
 }
 
 void LRUKReplacer::SetEvictable(frame_id_t frame_id, bool set_evictable) {
+  std::scoped_lock<std::mutex> lock(latch_);
   auto it = history_id_time_.lower_bound(std::make_pair(frame_id, 0));
   if (it != history_id_time_.end() && it->first == frame_id) {
     if (set_evictable) {
@@ -120,6 +122,7 @@ void LRUKReplacer::SetEvictable(frame_id_t frame_id, bool set_evictable) {
     } else {
       history_is_evictable_.erase(frame_id);
     }
+    return;
   }
   if (set_evictable) {
     cache_is_evictable_.insert(frame_id);
@@ -128,7 +131,39 @@ void LRUKReplacer::SetEvictable(frame_id_t frame_id, bool set_evictable) {
   }
 }
 
-void LRUKReplacer::Remove(frame_id_t frame_id) {}
+void LRUKReplacer::Remove(frame_id_t frame_id) {
+  std::scoped_lock<std::mutex> lock(latch_);
+  auto it = history_id_time_.lower_bound(std::make_pair(frame_id, 0));
+  if (it != history_id_time_.end() && it->first == frame_id) {
+    try {
+      if (history_is_evictable_.count(frame_id) == 0U) {
+        throw std::runtime_error("The frame is not evictable!");
+      }
+      history_is_evictable_.erase(frame_id);
+      history_cnt_[frame_id] = 0;
+      history_time_id_.erase(std::make_pair(it->second, it->first));
+      history_id_time_.erase(it);
+    } catch (const std::exception &e) {
+      std::cerr << e.what() << '\n';
+    }
+    return;
+  }
+  it = cache_id_time_.lower_bound(std::make_pair(frame_id, 0));
+  if (it != cache_id_time_.end() && it->first == frame_id) {
+    try {
+      if (cache_is_evictable_.count(frame_id) == 0U) {
+        throw std::runtime_error("The frame is not evictable!");
+      }
+      cache_is_evictable_.erase(frame_id);
+      cache_time_id_.erase(std::make_pair(it->second, it->first));
+      cache_id_time_.erase(it);
+    } catch (const std::exception &e) {
+      std::cerr << e.what() << '\n';
+    }
+    return;
+  }
+  return;
+}
 
 auto LRUKReplacer::Size() -> size_t { return history_is_evictable_.size() + cache_is_evictable_.size(); }
 

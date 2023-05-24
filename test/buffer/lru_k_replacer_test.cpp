@@ -6,6 +6,7 @@
 
 #include <algorithm>
 #include <cstdio>
+#include <iostream>
 #include <memory>
 #include <random>
 #include <set>
@@ -16,7 +17,7 @@
 
 namespace bustub {
 
-TEST(LRUKReplacerTest, DISABLED_SampleTest) {
+TEST(LRUKReplacerTest, SampleTest) {
   LRUKReplacer lru_replacer(7, 2);
 
   // Scenario: add six elements to the replacer. We have [1,2,3,4,5]. Frame 6 is non-evictable.

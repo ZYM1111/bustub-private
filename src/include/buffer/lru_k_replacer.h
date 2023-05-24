@@ -145,7 +145,6 @@ class LRUKReplacer {
   std::set<std::pair<frame_id_t, size_t>> cache_id_time_, history_id_time_;
   std::set<std::pair<size_t, frame_id_t>> cache_time_id_, history_time_id_;
   std::map<frame_id_t, size_t> history_cnt_;
-  std::set<frame_id_t> total_;  // 总的在两个queue中的id
   std::set<frame_id_t> cache_is_evictable_, history_is_evictable_;
   std::mutex latch_;
 };
