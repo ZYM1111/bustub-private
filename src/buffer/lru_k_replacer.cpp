@@ -13,8 +13,10 @@
 #include "buffer/lru_k_replacer.h"
 #include <exception>
 #include <iostream>
+#include <stdexcept>
 #include <utility>
 #include "common/config.h"
+#include "common/exception.h"
 
 namespace bustub {
 
@@ -44,6 +46,11 @@ auto LRUKReplacer::Evict(frame_id_t *frame_id) -> bool {
       cache_is_evictable_.erase(id);
       return true;
     }
+  }
+  try {
+    assert(0);
+  } catch (const std::exception &e) {
+    std::cerr << e.what() << '\n';
   }
   return true;
 }
@@ -115,6 +122,14 @@ void LRUKReplacer::RecordAccess(frame_id_t frame_id) {
 
 void LRUKReplacer::SetEvictable(frame_id_t frame_id, bool set_evictable) {
   std::scoped_lock<std::mutex> lock(latch_);
+  try {
+    if (frame_id < 0) {
+      throw std::runtime_error("The frame id is invalid!");
+    }
+  } catch (const std::exception &e) {
+    std::cerr << e.what() << '\n';
+  }
+
   auto it = history_id_time_.lower_bound(std::make_pair(frame_id, 0));
   if (it != history_id_time_.end() && it->first == frame_id) {
     if (set_evictable) {
@@ -124,10 +139,13 @@ void LRUKReplacer::SetEvictable(frame_id_t frame_id, bool set_evictable) {
     }
     return;
   }
-  if (set_evictable) {
-    cache_is_evictable_.insert(frame_id);
-  } else {
-    cache_is_evictable_.erase(frame_id);
+  it = cache_id_time_.lower_bound(std::make_pair(frame_id, 0));
+  if (it != cache_id_time_.end() && it->first == frame_id) {
+    if (set_evictable) {
+      cache_is_evictable_.insert(frame_id);
+    } else {
+      cache_is_evictable_.erase(frame_id);
+    }
   }
 }
 
@@ -162,7 +180,6 @@ void LRUKReplacer::Remove(frame_id_t frame_id) {
     }
     return;
   }
-  return;
 }
 
 auto LRUKReplacer::Size() -> size_t { return history_is_evictable_.size() + cache_is_evictable_.size(); }

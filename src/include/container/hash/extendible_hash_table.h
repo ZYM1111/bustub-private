@@ -65,9 +65,9 @@ class ExtendibleHashTable : public HashTable<K, V> {
 
   auto IncrementGlobalDepth() { global_depth_++; }
 
-  auto GetBucketSize() { return bucket_size_; };
+  auto GetBucketSize() { return bucket_size_; }
 
-  auto UpdateNumBuckets(int num_buckets) ;
+  auto UpdateNumBuckets(int num_buckets);
 
   /**
    *
@@ -170,7 +170,6 @@ class ExtendibleHashTable : public HashTable<K, V> {
     std::list<std::pair<K, V>> list_;
   };
 
-
  private:
   // TODO(student): You may add additional private members and helper functions and remove the ones
   // you don't need.
@@ -204,6 +203,5 @@ class ExtendibleHashTable : public HashTable<K, V> {
   auto GetLocalDepthInternal(int dir_index) const -> int;
   auto GetNumBucketsInternal() const -> int;
 };
-
 
 }  // namespace bustub

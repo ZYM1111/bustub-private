@@ -15,11 +15,12 @@
 #include <cstddef>
 #include <limits>
 #include <list>
-#include <mutex>  // NOLINT
-#include <unordered_map>
-#include <vector>
-#include <set>
 #include <map>
+#include <mutex>  // NOLINT
+#include <set>
+#include <unordered_map>
+#include <utility>
+#include <vector>
 
 #include "common/config.h"
 #include "common/macros.h"
