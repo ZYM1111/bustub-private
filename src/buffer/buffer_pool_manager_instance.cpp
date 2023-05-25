@@ -58,7 +58,6 @@ auto BufferPoolManagerInstance::NewPgImp(page_id_t *page_id) -> Page * {
   } else {  // lru-k替换
     replacer_->Evict(&frame_id);
   }
-
   if (pages_[frame_id].IsDirty()) {
     disk_manager_->WritePage(pages_[frame_id].page_id_, pages_[frame_id].GetData());
     pages_[frame_id].is_dirty_ = false;
@@ -77,7 +76,11 @@ auto BufferPoolManagerInstance::NewPgImp(page_id_t *page_id) -> Page * {
 auto BufferPoolManagerInstance::FetchPgImp(page_id_t page_id) -> Page * {
   std::scoped_lock<std::mutex> lock(latch_);
   frame_id_t frame_id;
+  if (page_id == INVALID_PAGE_ID) {
+    return nullptr;
+  }
   if (page_table_->Find(page_id, frame_id)) {
+    pages_[frame_id].pin_count_++;
     return &pages_[frame_id];
   }
   if (free_list_.empty() && replacer_->Size() == 0U) {
@@ -107,6 +110,9 @@ auto BufferPoolManagerInstance::FetchPgImp(page_id_t page_id) -> Page * {
 
 auto BufferPoolManagerInstance::UnpinPgImp(page_id_t page_id, bool is_dirty) -> bool {
   std::scoped_lock<std::mutex> lock(latch_);
+  if (page_id == INVALID_PAGE_ID) {
+    return false;
+  }
   frame_id_t frame_id;
   if (!page_table_->Find(page_id, frame_id) || pages_[frame_id].GetPinCount() == 0U) {
     return false;
@@ -124,6 +130,9 @@ auto BufferPoolManagerInstance::UnpinPgImp(page_id_t page_id, bool is_dirty) -> 
 
 auto BufferPoolManagerInstance::FlushPgImp(page_id_t page_id) -> bool {
   std::scoped_lock<std::mutex> lock(latch_);
+  if (page_id == INVALID_PAGE_ID) {
+    return false;
+  }
   frame_id_t frame_id;
   if (!page_table_->Find(page_id, frame_id)) {
     return false;
@@ -134,19 +143,16 @@ auto BufferPoolManagerInstance::FlushPgImp(page_id_t page_id) -> bool {
 }
 
 void BufferPoolManagerInstance::FlushAllPgsImp() {
-  std::set<frame_id_t> not_flushed;
-  for (auto frame_id : free_list_) {
-    not_flushed.insert(frame_id);
-  }
   for (frame_id_t frame_id = 0; frame_id < static_cast<frame_id_t>(pool_size_); frame_id++) {
-    if (not_flushed.count(frame_id) == 0U) {
-      FlushPgImp(frame_id);
-    }
+    FlushPgImp(frame_id);
   }
 }
 
 auto BufferPoolManagerInstance::DeletePgImp(page_id_t page_id) -> bool {
   std::scoped_lock<std::mutex> lock(latch_);
+  if (page_id == INVALID_PAGE_ID) {
+    return false;
+  }
   frame_id_t frame_id;
   if (!page_table_->Find(page_id, frame_id)) {
     return true;
