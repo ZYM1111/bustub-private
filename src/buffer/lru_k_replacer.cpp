@@ -63,13 +63,13 @@ auto LRUKReplacer::Evict(frame_id_t *frame_id) -> bool {
 
 void LRUKReplacer::RecordAccess(frame_id_t frame_id) {
   std::scoped_lock<std::mutex> lock(latch_);
-  // try {
-  //   if (frame_id < 0 || frame_id >= static_cast<frame_id_t>(replacer_size_)) {
-  //     throw std::runtime_error("The frame id is invalid!");
-  //   }
-  // } catch (const std::exception &e) {
-  //   std::cerr << e.what() << '\n';
-  // }
+  try {
+    if (frame_id < 0 || frame_id >= static_cast<frame_id_t>(replacer_size_)) {
+      throw std::runtime_error("The frame id is invalid!");
+    }
+  } catch (const std::exception &e) {
+    std::cerr << e.what() << '\n';
+  }
 
   auto it = cache_id_time_.lower_bound(std::make_pair(frame_id, 0));
   if (it != cache_id_time_.end() && it->first == frame_id) {  // 在cache queue里, 更新时间
@@ -85,11 +85,10 @@ void LRUKReplacer::RecordAccess(frame_id_t frame_id) {
     if (it != history_id_time_.end() && it->first == frame_id) {  // 在history queue里
       auto [id, ti] = *it;
       auto it2 = history_time_id_.lower_bound(std::make_pair(ti, id));
-      history_id_time_.erase(it);
-      history_time_id_.erase(it2);
-
       history_cnt_[frame_id]++;
       if (history_cnt_[frame_id] == k_) {  // his queue里删除, 添加到cache queue
+        history_id_time_.erase(it);
+        history_time_id_.erase(it2);
         history_cnt_.erase(frame_id);
         // 不可驱逐性保持一致
         if (history_is_evictable_.count(frame_id) != 0U) {
@@ -109,10 +108,6 @@ void LRUKReplacer::RecordAccess(frame_id_t frame_id) {
         cache_id_time_.insert(std::make_pair(id, current_timestamp_));
         cache_time_id_.insert(std::make_pair(current_timestamp_, id));
         current_timestamp_ += 1;
-      } else {  // his queue中更新时间
-        history_id_time_.insert(std::make_pair(id, current_timestamp_));
-        history_time_id_.insert(std::make_pair(current_timestamp_, id));
-        current_timestamp_ += 1;
       }
     } else {  // 不在cache, 也不在his中
       // 默认不可以删除, 所以his queue的size不会变大, 不用判断要不要删除
@@ -127,13 +122,13 @@ void LRUKReplacer::RecordAccess(frame_id_t frame_id) {
 
 void LRUKReplacer::SetEvictable(frame_id_t frame_id, bool set_evictable) {
   std::scoped_lock<std::mutex> lock(latch_);
-  // try {
-  //   if (frame_id < 0 || frame_id >= static_cast<frame_id_t>(replacer_size_)) {
-  //     throw std::runtime_error("The frame id is invalid!");
-  //   }
-  // } catch (const std::exception &e) {
-  //   std::cerr << e.what() << '\n';
-  // }
+  try {
+    if (frame_id < 0 || frame_id >= static_cast<frame_id_t>(replacer_size_)) {
+      throw std::runtime_error("The frame id is invalid!");
+    }
+  } catch (const std::exception &e) {
+    std::cerr << e.what() << '\n';
+  }
 
   auto it = history_id_time_.lower_bound(std::make_pair(frame_id, 0));
   if (it != history_id_time_.end() && it->first == frame_id) {
@@ -177,13 +172,13 @@ void LRUKReplacer::SetEvictable(frame_id_t frame_id, bool set_evictable) {
 
 void LRUKReplacer::Remove(frame_id_t frame_id) {
   std::scoped_lock<std::mutex> lock(latch_);
-  // try {
-  //   if (frame_id < 0 || frame_id >= static_cast<frame_id_t>(replacer_size_)) {
-  //     throw std::runtime_error("The frame id is invalid!");
-  //   }
-  // } catch (const std::exception &e) {
-  //   std::cerr << e.what() << '\n';
-  // }
+  try {
+    if (frame_id < 0 || frame_id >= static_cast<frame_id_t>(replacer_size_)) {
+      throw std::runtime_error("The frame id is invalid!");
+    }
+  } catch (const std::exception &e) {
+    std::cerr << e.what() << '\n';
+  }
   auto it = history_id_time_.lower_bound(std::make_pair(frame_id, 0));
   if (it != history_id_time_.end() && it->first == frame_id) {
     try {
