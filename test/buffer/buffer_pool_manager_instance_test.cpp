@@ -13,6 +13,7 @@
 #include "buffer/buffer_pool_manager_instance.h"
 
 #include <cstdio>
+#include <iostream>
 #include <random>
 #include <string>
 

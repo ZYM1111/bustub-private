@@ -81,8 +81,11 @@ auto BufferPoolManagerInstance::FetchPgImp(page_id_t page_id) -> Page * {
   }
   if (page_table_->Find(page_id, frame_id)) {
     pages_[frame_id].pin_count_++;
+    replacer_->RecordAccess(frame_id);
+    replacer_->SetEvictable(frame_id, false);
     return &pages_[frame_id];
   }
+
   if (free_list_.empty() && replacer_->Size() == 0U) {
     return nullptr;
   }
@@ -114,17 +117,16 @@ auto BufferPoolManagerInstance::UnpinPgImp(page_id_t page_id, bool is_dirty) -> 
     return false;
   }
   frame_id_t frame_id;
-  if (!page_table_->Find(page_id, frame_id) || pages_[frame_id].GetPinCount() == 0U) {
+  if (!page_table_->Find(page_id, frame_id) || pages_[frame_id].GetPinCount() <= 0) {
     return false;
   }
   pages_[frame_id].pin_count_ -= 1;
   if (pages_[frame_id].GetPinCount() == 0U) {
-    page_table_->Remove(page_id);
-    free_list_.emplace_back(frame_id);
     replacer_->SetEvictable(frame_id, true);
-    replacer_->Remove(frame_id);
   }
-  pages_[frame_id].is_dirty_ = is_dirty;
+  if (is_dirty) {
+    pages_[frame_id].is_dirty_ = is_dirty;
+  }
   return true;
 }
 
