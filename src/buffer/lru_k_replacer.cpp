@@ -63,13 +63,13 @@ auto LRUKReplacer::Evict(frame_id_t *frame_id) -> bool {
 
 void LRUKReplacer::RecordAccess(frame_id_t frame_id) {
   std::scoped_lock<std::mutex> lock(latch_);
-  try {
-    if (frame_id < 0 || frame_id >= static_cast<frame_id_t>(replacer_size_)) {
-      throw std::runtime_error("The frame id is invalid!");
-    }
-  } catch (const std::exception &e) {
-    std::cerr << e.what() << '\n';
-  }
+  // try {
+  //   if (frame_id < 0 || frame_id >= static_cast<frame_id_t>(replacer_size_)) {
+  //     throw std::runtime_error("The frame id is invalid!");
+  //   }
+  // } catch (const std::exception &e) {
+  //   std::cerr << e.what() << '\n';
+  // }
 
   auto it = cache_id_time_.lower_bound(std::make_pair(frame_id, 0));
   if (it != cache_id_time_.end() && it->first == frame_id) {  // 在cache queue里, 更新时间
@@ -127,63 +127,63 @@ void LRUKReplacer::RecordAccess(frame_id_t frame_id) {
 
 void LRUKReplacer::SetEvictable(frame_id_t frame_id, bool set_evictable) {
   std::scoped_lock<std::mutex> lock(latch_);
-  try {
-    if (frame_id < 0 || frame_id >= static_cast<frame_id_t>(replacer_size_)) {
-      throw std::runtime_error("The frame id is invalid!");
-    }
-  } catch (const std::exception &e) {
-    std::cerr << e.what() << '\n';
-  }
+  // try {
+  //   if (frame_id < 0 || frame_id >= static_cast<frame_id_t>(replacer_size_)) {
+  //     throw std::runtime_error("The frame id is invalid!");
+  //   }
+  // } catch (const std::exception &e) {
+  //   std::cerr << e.what() << '\n';
+  // }
 
   auto it = history_id_time_.lower_bound(std::make_pair(frame_id, 0));
   if (it != history_id_time_.end() && it->first == frame_id) {
-    if (set_evictable) {
-      history_is_evictable_.insert(frame_id);
-    } else {
-      history_is_evictable_.erase(frame_id);
-    }
-    if (history_is_evictable_.size() == replacer_size_) {  // his queue满了
-      for (auto [ti, id] : history_time_id_) {
-        if (history_is_evictable_.count(id) != 0U) {
-          history_is_evictable_.erase(id);
-          history_id_time_.erase(std::make_pair(id, ti));
-          history_time_id_.erase(std::make_pair(ti, id));
-          history_cnt_[id] = 0;
-          break;
+    if (set_evictable && history_is_evictable_.count(frame_id) == 0U) {
+      if (history_is_evictable_.size() == replacer_size_) {  // his queue满了
+        for (auto [ti, id] : history_time_id_) {
+          if (history_is_evictable_.count(id) != 0U) {
+            history_is_evictable_.erase(id);
+            history_id_time_.erase(std::make_pair(id, ti));
+            history_time_id_.erase(std::make_pair(ti, id));
+            history_cnt_[id] = 0;
+            break;
+          }
         }
       }
+      history_is_evictable_.insert(frame_id);
+    } else if (!set_evictable) {
+      history_is_evictable_.erase(frame_id);
     }
     return;
   }
   it = cache_id_time_.lower_bound(std::make_pair(frame_id, 0));
   if (it != cache_id_time_.end() && it->first == frame_id) {
-    if (set_evictable) {
-      cache_is_evictable_.insert(frame_id);
-    } else {
-      cache_is_evictable_.erase(frame_id);
-    }
-    if (cache_is_evictable_.size() == replacer_size_) {  // cache满了, 删一个
-      for (auto it : cache_time_id_) {
-        if (cache_is_evictable_.count(it.second) != 0U) {
-          cache_is_evictable_.erase(it.second);
-          cache_id_time_.erase(std::make_pair(it.second, it.first));
-          cache_time_id_.erase(std::make_pair(it.first, it.second));
-          break;
+    if (set_evictable && cache_is_evictable_.count(frame_id) == 0U) {
+      if (cache_is_evictable_.size() == replacer_size_) {  // cache满了, 删一个
+        for (auto it : cache_time_id_) {
+          if (cache_is_evictable_.count(it.second) != 0U) {
+            cache_is_evictable_.erase(it.second);
+            cache_id_time_.erase(std::make_pair(it.second, it.first));
+            cache_time_id_.erase(std::make_pair(it.first, it.second));
+            break;
+          }
         }
       }
+      cache_is_evictable_.insert(frame_id);
+    } else if (!set_evictable) {
+      cache_is_evictable_.erase(frame_id);
     }
   }
 }
 
 void LRUKReplacer::Remove(frame_id_t frame_id) {
   std::scoped_lock<std::mutex> lock(latch_);
-  try {
-    if (frame_id < 0 || frame_id >= static_cast<frame_id_t>(replacer_size_)) {
-      throw std::runtime_error("The frame id is invalid!");
-    }
-  } catch (const std::exception &e) {
-    std::cerr << e.what() << '\n';
-  }
+  // try {
+  //   if (frame_id < 0 || frame_id >= static_cast<frame_id_t>(replacer_size_)) {
+  //     throw std::runtime_error("The frame id is invalid!");
+  //   }
+  // } catch (const std::exception &e) {
+  //   std::cerr << e.what() << '\n';
+  // }
   auto it = history_id_time_.lower_bound(std::make_pair(frame_id, 0));
   if (it != history_id_time_.end() && it->first == frame_id) {
     try {
